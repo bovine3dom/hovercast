@@ -111,3 +111,45 @@ dummy = DataFrame(dates = dates, winddir = rand((:N,:NE,:E,:SE,:S,:SW,:W,:NW),st
 # For getting real historic data,
 # https://dev.meteostat.net/ looks like it might be OK, but it probably doesn't include wave height
 # Once I have a proof of concept I may have to send a friendly email to the magicseaweed people
+#
+using DecisionTree
+labels = dummy.hover
+features = [dummy.waveheight  dummy.windspeed  dummy.winddir]
+model = DecisionTreeClassifier(max_depth=4)
+fit!(model,features,labels)
+predict_proba(model, [1.4, 10.0, :S])
+
+
+using CSV
+# NB need to add headers manually to CSV
+catherine = CSV.read("data/wight_catherine_point_03866.csv";copycols=true)
+# need also to skipmissing?
+onlyvalid = filter(r->(r.date >= Date("2019-03-31")) && (7 <= r.hour <= 23) ,catherine)
+# catherine = CSV.read("data/southampton_03865.csv";copycols=true)
+onlyvalid.zd = ZonedDateTime.(Dates.DateTime.(onlyvalid.date) .+ Dates.Hour.(onlyvalid.hour), TimeZone("UTC"))
+onlyvalid.hover = hoverrun.(onlyvalid.zd)
+
+# Need to only check for hovercraft running when we have data for it
+# First day we have is 2019-03-31
+# Let's also restrict ourselves to 7/8AM to 10/11PM
+
+features = [sin.(deg2rad.(onlyvalid.winddir_deg)) onlyvalid.windspeed]
+labels = onlyvalid.hover
+model = DecisionTreeClassifier(max_depth=4)
+fit!(model,features,labels)
+predict_proba(model, [0.3, 50.4])
+
+# IRL there doesn't seem to be much relationship between windspeed at catherine
+# and whether hovercraft runs
+#
+# nor with southampton
+#
+# maybe we just can't do this after all? 
+#
+# But there definitely is a link with wave height. Just need to get that forecast.
+#
+#  using Plots
+#  
+#  scatter(onlyvalid.windspeed, onlyvalid.hover)
+#  scatter(dummy.windspeed, dummy.hover)
+
